@@ -15,6 +15,8 @@ import {
   IconButton,
   Tooltip,
   Chip,
+  Button,
+  Alert,
 } from '@mui/material';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -77,6 +79,8 @@ function Dashboard() {
     if (value == null || isNaN(value)) return '0.00';
     return value.toFixed(2);
   };
+
+
 
 
   const StatCard = ({ title, value, subtitle, icon, color, trend, onClick }) => (
@@ -209,6 +213,7 @@ function Dashboard() {
           </IconButton>
         </Tooltip>
       </Box>
+
 
         {/* Account Summary Cards */}
         {accountLoading ? (
