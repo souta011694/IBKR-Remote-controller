@@ -453,41 +453,6 @@ function BotManagement() {
                     </FormControl>
                   </Grid>
 
-                  {/* Time Frame */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <FormControl fullWidth>
-                      <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Time Frame</InputLabel>
-                      <Select
-                        value={formData.timeFrame}
-                        onChange={handleFormChange('timeFrame')}
-                        label="Time Frame"
-                        sx={{
-                          color: '#FFFFFF',
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'rgba(255, 255, 255, 0.23)',
-                          },
-                          '&:hover .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'rgba(255, 255, 255, 0.4)',
-                          },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: '#FFFFFF',
-                          },
-                          '& .MuiSvgIcon-root': {
-                            color: 'rgba(255, 255, 255, 0.7)',
-                          },
-                        }}
-                      >
-                        <MenuItem value="1min">1 Minute</MenuItem>
-                        <MenuItem value="5min">5 Minutes</MenuItem>
-                        <MenuItem value="15min">15 Minutes</MenuItem>
-                        <MenuItem value="30min">30 Minutes</MenuItem>
-                        <MenuItem value="1hour">1 Hour</MenuItem>
-                        <MenuItem value="4hour">4 Hours</MenuItem>
-                        <MenuItem value="1day">1 Day</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
                   {/* Stop Loss */}
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth>
@@ -522,6 +487,41 @@ function BotManagement() {
                         <MenuItem value="25% ATR">25% ATR</MenuItem>
                         <MenuItem value="33% ATR">33% ATR</MenuItem>
                         <MenuItem value="50% ATR">50% ATR</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  {/* Time Frame */}
+                  <Grid item xs={12} sm={6} md={3}>
+                    <FormControl fullWidth>
+                      <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Time Frame</InputLabel>
+                      <Select
+                        value={formData.timeFrame}
+                        onChange={handleFormChange('timeFrame')}
+                        label="Time Frame"
+                        sx={{
+                          color: '#FFFFFF',
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: 'rgba(255, 255, 255, 0.23)',
+                          },
+                          '&:hover .MuiOutlinedInput-notchedOutline': {
+                            borderColor: 'rgba(255, 255, 255, 0.4)',
+                          },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#FFFFFF',
+                          },
+                          '& .MuiSvgIcon-root': {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                          },
+                        }}
+                      >
+                        <MenuItem value="1min">1 Minute</MenuItem>
+                        <MenuItem value="5min">5 Minutes</MenuItem>
+                        <MenuItem value="15min">15 Minutes</MenuItem>
+                        <MenuItem value="30min">30 Minutes</MenuItem>
+                        <MenuItem value="1hour">1 Hour</MenuItem>
+                        <MenuItem value="4hour">4 Hours</MenuItem>
+                        <MenuItem value="1day">1 Day</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
