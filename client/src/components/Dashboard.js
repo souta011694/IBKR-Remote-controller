@@ -72,6 +72,12 @@ function Dashboard() {
     }
   };
 
+  // Helper function to safely format percentage
+  const formatPercent = (value) => {
+    if (value == null || isNaN(value)) return '0.00';
+    return value.toFixed(2);
+  };
+
 
   const StatCard = ({ title, value, subtitle, icon, color, trend, onClick }) => (
     <Card 
@@ -218,8 +224,8 @@ function Dashboard() {
                       title="Total Balance"
                       value={formatCurrency(accountData.totalBalance)}
                       subtitle={accountData.dailyProfitPercent >= 0 
-                        ? `+${accountData.dailyProfitPercent.toFixed(2)}% today`
-                        : `${accountData.dailyProfitPercent.toFixed(2)}% today`}
+                        ? `+${formatPercent(accountData.dailyProfitPercent)}% today`
+                        : `${formatPercent(accountData.dailyProfitPercent)}% today`}
                       icon={<AccountBalanceIcon sx={{ fontSize: 40 }} />}
                       color={accountData.dailyProfit >= 0 ? 'success.main' : 'error.main'}
                       trend={accountData.dailyProfit >= 0 ? 'up' : 'down'}
@@ -235,8 +241,8 @@ function Dashboard() {
                       title="Daily Profit"
                       value={formatCurrency(accountData.dailyProfit)}
                       subtitle={accountData.dailyProfitPercent >= 0 
-                        ? `+${accountData.dailyProfitPercent.toFixed(2)}%`
-                        : `${accountData.dailyProfitPercent.toFixed(2)}%`}
+                        ? `+${formatPercent(accountData.dailyProfitPercent)}%`
+                        : `${formatPercent(accountData.dailyProfitPercent)}%`}
                       icon={<TrendingUpIcon sx={{ fontSize: 40 }} />}
                       color={accountData.dailyProfit >= 0 ? 'success.main' : 'error.main'}
                       trend={accountData.dailyProfit >= 0 ? 'up' : 'down'}
@@ -375,7 +381,7 @@ function Dashboard() {
                         <Box display="flex" justifyContent="space-between" py={1.5} borderBottom="1px solid rgba(255, 255, 255, 0.08)">
                           <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Daily Change:</Typography>
                           <Typography fontWeight={600} sx={{ color: accountData.dailyProfit >= 0 ? '#4caf50' : '#f44336' }}>
-                            {accountData.dailyProfitPercent >= 0 ? '+' : ''}{accountData.dailyProfitPercent.toFixed(2)}%
+                            {accountData.dailyProfitPercent >= 0 ? '+' : ''}{formatPercent(accountData.dailyProfitPercent)}%
                           </Typography>
                         </Box>
                         <Box display="flex" justifyContent="space-between" py={1.5}>
