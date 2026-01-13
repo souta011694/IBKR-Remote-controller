@@ -22,8 +22,9 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { config } from '../config';
+const API_BASE_URL = config.Main_Endpoint + '/api';
+console.log("--------------------------------------------->API_BASE_URL",API_BASE_URL);
 
 function OpenPositionsModal({ open, onClose, currency = 'USD' }) {
   const { token } = useAuth();

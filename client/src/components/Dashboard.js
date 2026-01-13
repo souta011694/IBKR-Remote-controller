@@ -28,8 +28,9 @@ import BalanceChartModal from './BalanceChartModal';
 import TradingViewChart from './TradingViewChart';
 import TradeHistoryModal from './TradeHistoryModal';
 import OpenPositionsModal from './OpenPositionsModal';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { config } from '../config';
+const API_BASE_URL = config.Main_Endpoint + '/api';
+console.log("--------------------------------------------->API_BASE_URL",API_BASE_URL);
 
 function Dashboard() {
   const { token } = useAuth();

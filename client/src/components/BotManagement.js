@@ -20,9 +20,9 @@ import ErrorIcon from '@mui/icons-material/Error';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-
+import { config } from '../config';
+const API_BASE_URL = config.Main_Endpoint + '/api';
+console.log("--------------------------------------------->API_BASE_URL",API_BASE_URL);
 function BotManagement() {
   const { token } = useAuth();
   const [botStatus, setBotStatus] = useState(false);
