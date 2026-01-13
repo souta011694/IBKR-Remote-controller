@@ -1,9 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
-
+import { config } from '../config';
 const AuthContext = createContext();
-const base_url = "https://mensural-unbravely-malcolm.ngrok-free.dev"
-const API_BASE_URL = base_url + '/api';
+const API_BASE_URL = config.Main_Endpoint + '/api';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -52,7 +51,6 @@ export const AuthProvider = ({ children }) => {
         email,
         password,
       });
-      console.log("--------------------------------------------->response",response);
       const { token, user } = response.data;
       setToken(token);
       setUser(user);
