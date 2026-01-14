@@ -44,7 +44,7 @@ function BotManagement() {
   const [formData, setFormData] = useState({
     symbol: '',
     stopLoss: 'EntryBar',
-    tradeType: 'Limit Order',
+    tradeType: 'FB',
     cancel: false,
     action: 'BUY',
     risk: '',
@@ -58,6 +58,24 @@ function BotManagement() {
   const [formError, setFormError] = useState('');
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [customStopLossValue, setCustomStopLossValue] = useState('');
+  const [conditionalModalOpen, setConditionalModalOpen] = useState(false);
+  const [limitOrderModalOpen, setLimitOrderModalOpen] = useState(false);
+  const [limitPrice, setLimitPrice] = useState('');
+  const [customTradeTypeModalOpen, setCustomTradeTypeModalOpen] = useState(false);
+  const [entryPrice, setEntryPrice] = useState('');
+  const [entryPoints, setEntryPoints] = useState('0');
+  const [conditionalOrder, setConditionalOrder] = useState({
+    order1Enabled: false,
+    order1StopPrice: '',
+    order1Condition: 'Above',
+    order1Price: '',
+    order2Enabled: false,
+    order2StopPrice: '',
+    order2Condition1: 'Above',
+    order2Price1: '',
+    order2Condition2: 'Above',
+    order2Price2: '',
+  });
 
   // Create axios instance with auth header
   const getAuthHeaders = () => ({
@@ -98,21 +116,97 @@ function BotManagement() {
     }
   }, [token]);
 
-  // Show modal when Trade Type is "Custom" (independent of Stop Loss)
+  // Show modal when Trade Type is "Custom" for entryPrice
   useEffect(() => {
-    if (formData.tradeType === 'Custom') {
-      if (!customModalOpen) {
-        setCustomModalOpen(true);
-      }
-    } else {
-      // Close modal and clear custom value if Trade Type changes away from Custom
-      if (customModalOpen) {
-        setCustomModalOpen(false);
-        setCustomStopLossValue('');
-      }
+    if (formData.tradeType === 'Custom' && !customTradeTypeModalOpen) {
+      setCustomTradeTypeModalOpen(true);
+    } else if (formData.tradeType !== 'Custom' && customTradeTypeModalOpen) {
+      setCustomTradeTypeModalOpen(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.tradeType]);
+
+  // Show modal when Stop Loss is "Custom" for customStopLossValue
+  useEffect(() => {
+    if (formData.stopLoss === 'Custom' && !customModalOpen) {
+      setCustomModalOpen(true);
+    } else if (formData.stopLoss !== 'Custom' && customModalOpen) {
+      setCustomModalOpen(false);
+      setCustomStopLossValue('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.stopLoss]);
+
+  // Show Conditional Order modal when Trade Type changes to "Conditional Order"
+  useEffect(() => {
+    if (formData.tradeType === 'Conditional Order' && !conditionalModalOpen) {
+      setConditionalModalOpen(true);
+    } else if (formData.tradeType !== 'Conditional Order' && conditionalModalOpen) {
+      setConditionalModalOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.tradeType]);
+
+  // Show Limit Order modal when Trade Type changes to "Limit Order"
+  useEffect(() => {
+    if (formData.tradeType === 'Limit Order' && !limitOrderModalOpen) {
+      setLimitOrderModalOpen(true);
+    } else if (formData.tradeType !== 'Limit Order' && limitOrderModalOpen) {
+      setLimitOrderModalOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.tradeType]);
+
+  // Helper function to format conditional order params
+  // Format: order1Enabled,order1StopPrice,order1Condition,order1Price,order2Enabled,order2Condition1,order2Price1,order2Condition2,order2Price2
+  const formatConditionalOrderParams = (order) => {
+    const order1Enabled = order.order1Enabled ? '1' : '0';
+    const order2Enabled = order.order2Enabled ? '1' : '0';
+    return `${order1Enabled},${order.order1StopPrice || '0'},${order.order1Condition || 'Above'},${order.order1Price || '0'},${order2Enabled},${order.order2Condition1 || 'Above'},${order.order2Price1 || '0'},${order.order2Condition2 || 'Above'},${order.order2Price2 || '0'}`;
+  };
+
+  // Helper function to build API payload
+  const buildApiPayload = () => {
+    const basePayload = {
+      symbol: formData.symbol,
+      tradeType: formData.tradeType,
+      buySell: formData.action, // Changed from action to buySell
+      stopLoss: formData.stopLoss,
+      takeProfit: formData.profit, // Changed from profit to takeProfit
+      timeFrame: formData.timeFrame,
+      timeInForce: formData.timeInForce,
+      risk: formData.risk,
+      breakEven: formData.breakEven,
+    };
+
+    // Add customStopLossValue if stopLoss is "Custom"
+    if (formData.stopLoss === 'Custom' && customStopLossValue) {
+      basePayload.customStopLossValue = customStopLossValue;
+    }
+
+    // Add entryPrice for Custom trade type
+    if (formData.tradeType === 'Custom' && entryPrice) {
+      basePayload.entryPrice = entryPrice;
+    }
+
+    // Add entryPrice for Limit Order (from limitPrice)
+    if (formData.tradeType === 'Limit Order' && limitPrice) {
+      basePayload.entryPrice = limitPrice;
+    }
+
+    // Add conditionalOrderParams for Conditional Order
+    if (formData.tradeType === 'Conditional Order') {
+      basePayload.conditionalOrderParams = formatConditionalOrderParams(conditionalOrder);
+    }
+
+    // Add entryPoints for other trade types (RB, RBB, FB, PBe1, PBe2, LB, LB2, LB3)
+    const otherTradeTypes = ['RB', 'RBB', 'FB', 'PBe1', 'PBe2', 'LB', 'LB2', 'LB3'];
+    if (otherTradeTypes.includes(formData.tradeType)) {
+      basePayload.entryPoints = entryPoints || '0';
+    }
+
+    return basePayload;
+  };
 
   // Fetch positions
   const fetchPositions = async () => {
@@ -184,26 +278,42 @@ function BotManagement() {
         return;
       }
 
+      // Validate limit price for Limit Order
+      if (formData.tradeType === 'Limit Order' && !limitPrice) {
+        setFormError('Limit Price is required for Limit Order');
+        setLoading(false);
+        setLimitOrderModalOpen(true);
+        return;
+      }
+
+      // Validate entry price for Custom trade type
+      if (formData.tradeType === 'Custom' && !entryPrice) {
+        setFormError('Entry Price is required for Custom trade type');
+        setLoading(false);
+        setCustomTradeTypeModalOpen(true);
+        return;
+      }
+
       // If status is PENDING, do NOT send to bot yet – just store locally
       if (formData.status === 'PENDING') {
+        const payload = buildApiPayload();
         setPendingPosition({
-          symbol: formData.symbol,
-          tradeType: formData.tradeType,
-          stopLoss: formData.stopLoss,
-          takeProfit: formData.profit,
-          timeFrame: formData.timeFrame,
-          timeInForce: formData.timeInForce,
+          ...payload,
           status: formData.status,
+          // Store raw values for display
           customStopLossValue:
             formData.stopLoss === 'Custom' ? customStopLossValue || null : null,
+          conditionalOrder:
+            formData.tradeType === 'Conditional Order' ? conditionalOrder : null,
+          limitPrice:
+            formData.tradeType === 'Limit Order' ? limitPrice || null : null,
+          entryPrice:
+            formData.tradeType === 'Custom' ? entryPrice || null :
+            formData.tradeType === 'Limit Order' ? limitPrice || null : null,
         });
       } else {
         // For ACTIVE / CANCELLED, send immediately to bot
-        const submitData = {
-          ...formData,
-          customStopLossValue:
-            formData.stopLoss === 'Custom' ? customStopLossValue || null : null,
-        };
+        const submitData = buildApiPayload();
 
         await axios.post(
           `${API_BASE_URL}/bot/open-position`,
@@ -215,16 +325,20 @@ function BotManagement() {
         setTimeout(() => setStatusMessage(''), 5000);
 
         // Store last sent position for display
+        const payload = buildApiPayload();
         setPendingPosition({
-          symbol: formData.symbol,
-          tradeType: formData.tradeType,
-          stopLoss: formData.stopLoss,
-          takeProfit: formData.profit,
-          timeFrame: formData.timeFrame,
-          timeInForce: formData.timeInForce,
+          ...payload,
           status: formData.status,
+          // Store raw values for display
           customStopLossValue:
             formData.stopLoss === 'Custom' ? customStopLossValue || null : null,
+          conditionalOrder:
+            formData.tradeType === 'Conditional Order' ? conditionalOrder : null,
+          limitPrice:
+            formData.tradeType === 'Limit Order' ? limitPrice || null : null,
+          entryPrice:
+            formData.tradeType === 'Custom' ? entryPrice || null :
+            formData.tradeType === 'Limit Order' ? limitPrice || null : null,
         });
       }
 
@@ -232,7 +346,7 @@ function BotManagement() {
       setFormData({
         symbol: '',
         stopLoss: 'EntryBar',
-        tradeType: 'Limit Order',
+        tradeType: 'FB',
         cancel: false,
         action: 'BUY',
         risk: '',
@@ -244,6 +358,9 @@ function BotManagement() {
         status: 'PENDING',
       });
       setCustomStopLossValue('');
+      setLimitPrice('');
+      setEntryPrice('');
+      setEntryPoints('0');
 
       // Refresh positions from backend
       fetchPositions();
@@ -286,16 +403,46 @@ function BotManagement() {
     try {
       setLoading(true);
 
+      // Reconstruct payload from stored pendingPosition
       const submitData = {
         symbol: updated.symbol,
         tradeType: updated.tradeType,
+        buySell: updated.buySell || updated.action || 'BUY', // Support both old and new format
         stopLoss: updated.stopLoss,
-        takeProfit: updated.takeProfit,
+        takeProfit: updated.takeProfit || updated.profit || '1:1', // Support both old and new format
         timeFrame: updated.timeFrame,
         timeInForce: updated.timeInForce,
-        status: updated.status,
-        customStopLossValue: updated.customStopLossValue || null,
+        risk: updated.risk || '',
+        breakEven: updated.breakEven || false,
       };
+
+      // Add customStopLossValue if stopLoss is "Custom"
+      if (updated.stopLoss === 'Custom' && updated.customStopLossValue) {
+        submitData.customStopLossValue = updated.customStopLossValue;
+      }
+
+      // Add entryPrice for Custom trade type
+      if (updated.tradeType === 'Custom' && updated.entryPrice) {
+        submitData.entryPrice = updated.entryPrice;
+      }
+
+      // Add entryPrice for Limit Order
+      if (updated.tradeType === 'Limit Order' && updated.entryPrice) {
+        submitData.entryPrice = updated.entryPrice;
+      } else if (updated.tradeType === 'Limit Order' && updated.limitPrice) {
+        submitData.entryPrice = updated.limitPrice;
+      }
+
+      // Add conditionalOrderParams for Conditional Order
+      if (updated.tradeType === 'Conditional Order' && updated.conditionalOrder) {
+        submitData.conditionalOrderParams = formatConditionalOrderParams(updated.conditionalOrder);
+      }
+
+      // Add entryPoints for other trade types
+      const otherTradeTypes = ['RB', 'RBB', 'FB', 'PBe1', 'PBe2', 'LB', 'LB2', 'LB3'];
+      if (otherTradeTypes.includes(updated.tradeType)) {
+        submitData.entryPoints = updated.entryPoints || '0';
+      }
 
       await axios.post(
         `${API_BASE_URL}/bot/open-position`,
@@ -621,6 +768,40 @@ function BotManagement() {
                       </Select>
                     </FormControl>
                   </Grid>
+
+                  {/* Entry Points (for RB, RBB, FB, PBe1, PBe2, LB, LB2, LB3) */}
+                  {['RB', 'RBB', 'FB', 'PBe1', 'PBe2', 'LB', 'LB2', 'LB3'].includes(formData.tradeType) && (
+                    <Grid item xs={12} sm={6} md={3}>
+                      <TextField
+                        fullWidth
+                        label="Entry Points"
+                        type="number"
+                        value={entryPoints}
+                        onChange={(e) => setEntryPoints(e.target.value)}
+                        inputProps={{ step: '1', min: '0' }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            color: '#FFFFFF',
+                            '& fieldset': {
+                              borderColor: 'rgba(255, 255, 255, 0.23)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: 'rgba(255, 255, 255, 0.4)',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#FFFFFF',
+                            },
+                          },
+                          '& .MuiInputLabel-root': {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                          },
+                          '& .MuiInputLabel-root.Mui-focused': {
+                            color: '#FFFFFF',
+                          },
+                        }}
+                      />
+                    </Grid>
+                  )}
 
                   {/* Status and Action Buttons */}
                   <Grid item xs={12} sm={6} md={9}>
@@ -1062,6 +1243,527 @@ function BotManagement() {
           </Grid>
         )}
       </Grid>
+
+      {/* Conditional Order Modal */}
+      <Dialog
+        open={conditionalModalOpen}
+        onClose={() => setConditionalModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: '#121212',
+            color: '#FFFFFF',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', pb: 2 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6" sx={{ fontWeight: 600, flex: 1, textAlign: 'center' }}>
+              Conditional Order
+            </Typography>
+            <Button
+              onClick={() => setConditionalModalOpen(false)}
+              sx={{ minWidth: 'auto', color: 'rgba(255, 255, 255, 0.7)', ml: 'auto' }}
+            >
+              <CloseIcon />
+            </Button>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Grid container spacing={4}>
+            {/* Conditional Order 1 */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                Conditional Order 1
+              </Typography>
+              <Box sx={{ mb: 1.5 }}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>Conditional Order:</Typography>
+                  <Button
+                    variant={conditionalOrder.order1Enabled ? 'contained' : 'outlined'}
+                    size="small"
+                    onClick={() =>
+                      setConditionalOrder((prev) => ({
+                        ...prev,
+                        order1Enabled: !prev.order1Enabled,
+                      }))
+                    }
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {conditionalOrder.order1Enabled ? 'On' : 'Off'}
+                  </Button>
+                </Box>
+              </Box>
+              <Box sx={{ mb: 1.5 }}>
+                <Typography sx={{ mb: 0.5 }}>Input Stop Order Price:</Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  value={conditionalOrder.order1StopPrice}
+                  onChange={(e) =>
+                    setConditionalOrder((prev) => ({
+                      ...prev,
+                      order1StopPrice: e.target.value,
+                    }))
+                  }
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      color: '#FFFFFF',
+                      '& fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#FFFFFF',
+                      },
+                    },
+                  }}
+                />
+              </Box>
+              <Box sx={{ mb: 1.5 }}>
+                <Typography sx={{ mb: 0.5 }}>Input Condition:</Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={conditionalOrder.order1Condition}
+                    onChange={(e) =>
+                      setConditionalOrder((prev) => ({
+                        ...prev,
+                        order1Condition: e.target.value,
+                      }))
+                    }
+                    sx={{
+                      color: '#FFFFFF',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#FFFFFF',
+                      },
+                    }}
+                  >
+                    <MenuItem value="Above">Above</MenuItem>
+                    <MenuItem value="Below">Below</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box>
+                <Typography sx={{ mb: 0.5 }}>Input Price:</Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  value={conditionalOrder.order1Price}
+                  onChange={(e) =>
+                    setConditionalOrder((prev) => ({
+                      ...prev,
+                      order1Price: e.target.value,
+                    }))
+                  }
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      color: '#FFFFFF',
+                      '& fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#FFFFFF',
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            </Grid>
+
+            {/* Conditional Order 2 */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                Conditional Order 2
+              </Typography>
+              <Box sx={{ mb: 1.5 }}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>Conditional Order:</Typography>
+                  <Button
+                    variant={conditionalOrder.order2Enabled ? 'contained' : 'outlined'}
+                    size="small"
+                    onClick={() =>
+                      setConditionalOrder((prev) => ({
+                        ...prev,
+                        order2Enabled: !prev.order2Enabled,
+                      }))
+                    }
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {conditionalOrder.order2Enabled ? 'On' : 'Off'}
+                  </Button>
+                </Box>
+              </Box>
+              <Box sx={{ mb: 1.5 }}>
+                <Typography sx={{ mb: 0.5 }}>Input Stop Order Price:</Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  value={conditionalOrder.order2StopPrice}
+                  onChange={(e) =>
+                    setConditionalOrder((prev) => ({
+                      ...prev,
+                      order2StopPrice: e.target.value,
+                    }))
+                  }
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      color: '#FFFFFF',
+                      '& fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#FFFFFF',
+                      },
+                    },
+                  }}
+                />
+              </Box>
+              <Box sx={{ mb: 1.5 }}>
+                <Typography sx={{ mb: 0.5 }}>Input Condition 1:</Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={conditionalOrder.order2Condition1}
+                    onChange={(e) =>
+                      setConditionalOrder((prev) => ({
+                        ...prev,
+                        order2Condition1: e.target.value,
+                      }))
+                    }
+                    sx={{
+                      color: '#FFFFFF',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#FFFFFF',
+                      },
+                    }}
+                  >
+                    <MenuItem value="Above">Above</MenuItem>
+                    <MenuItem value="Below">Below</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box sx={{ mb: 1.5 }}>
+                <Typography sx={{ mb: 0.5 }}>Input Price:</Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  value={conditionalOrder.order2Price1}
+                  onChange={(e) =>
+                    setConditionalOrder((prev) => ({
+                      ...prev,
+                      order2Price1: e.target.value,
+                    }))
+                  }
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      color: '#FFFFFF',
+                      '& fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#FFFFFF',
+                      },
+                    },
+                  }}
+                />
+              </Box>
+              <Box sx={{ mb: 1.5 }}>
+                <Typography sx={{ mb: 0.5 }}>Input Condition 2:</Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={conditionalOrder.order2Condition2}
+                    onChange={(e) =>
+                      setConditionalOrder((prev) => ({
+                        ...prev,
+                        order2Condition2: e.target.value,
+                      }))
+                    }
+                    sx={{
+                      color: '#FFFFFF',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#FFFFFF',
+                      },
+                    }}
+                  >
+                    <MenuItem value="Above">Above</MenuItem>
+                    <MenuItem value="Below">Below</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box>
+                <Typography sx={{ mb: 0.5 }}>Input Price:</Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  value={conditionalOrder.order2Price2}
+                  onChange={(e) =>
+                    setConditionalOrder((prev) => ({
+                      ...prev,
+                      order2Price2: e.target.value,
+                    }))
+                  }
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      color: '#FFFFFF',
+                      '& fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#FFFFFF',
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', p: 2 }}>
+          <Button
+            onClick={() => setConditionalModalOpen(false)}
+            sx={{ color: 'rgba(255, 255, 255, 0.7)' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => setConditionalModalOpen(false)}
+            variant="contained"
+            sx={{
+              bgcolor: '#424242',
+              color: '#FFFFFF',
+              '&:hover': {
+                bgcolor: '#616161',
+              },
+            }}
+          >
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Limit Order Modal */}
+      <Dialog
+        open={limitOrderModalOpen}
+        onClose={() => setLimitOrderModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: '#121212',
+            color: '#FFFFFF',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', pb: 2 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Limit Order
+            </Typography>
+            <Button
+              onClick={() => setLimitOrderModalOpen(false)}
+              sx={{ minWidth: 'auto', color: 'rgba(255, 255, 255, 0.7)' }}
+            >
+              <CloseIcon />
+            </Button>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.7)' }}>
+            Please enter the limit price for your order:
+          </Typography>
+          <TextField
+            fullWidth
+            label="Limit Price"
+            type="number"
+            value={limitPrice}
+            onChange={(e) => setLimitPrice(e.target.value)}
+            inputProps={{ step: '0.01', min: '0' }}
+            autoFocus
+            required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: '#FFFFFF',
+                '& fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.23)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.4)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#FFFFFF',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#FFFFFF',
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', p: 2 }}>
+          <Button
+            onClick={() => setLimitOrderModalOpen(false)}
+            sx={{ color: 'rgba(255, 255, 255, 0.7)' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              if (limitPrice) {
+                setLimitOrderModalOpen(false);
+              }
+            }}
+            variant="contained"
+            disabled={!limitPrice}
+            sx={{
+              bgcolor: '#424242',
+              color: '#FFFFFF',
+              '&:hover': {
+                bgcolor: '#616161',
+              },
+            }}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Custom Trade Type Modal (for entryPrice) */}
+      <Dialog
+        open={customTradeTypeModalOpen}
+        onClose={() => setCustomTradeTypeModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: '#121212',
+            color: '#FFFFFF',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', pb: 2 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Custom Trade Type
+            </Typography>
+            <Button
+              onClick={() => setCustomTradeTypeModalOpen(false)}
+              sx={{ minWidth: 'auto', color: 'rgba(255, 255, 255, 0.7)' }}
+            >
+              <CloseIcon />
+            </Button>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.7)' }}>
+            Please enter the entry price for your custom order:
+          </Typography>
+          <TextField
+            fullWidth
+            label="Entry Price"
+            type="number"
+            value={entryPrice}
+            onChange={(e) => setEntryPrice(e.target.value)}
+            inputProps={{ step: '0.01', min: '0' }}
+            autoFocus
+            required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: '#FFFFFF',
+                '& fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.23)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.4)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#FFFFFF',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#FFFFFF',
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', p: 2 }}>
+          <Button
+            onClick={() => setCustomTradeTypeModalOpen(false)}
+            sx={{ color: 'rgba(255, 255, 255, 0.7)' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              if (entryPrice) {
+                setCustomTradeTypeModalOpen(false);
+              }
+            }}
+            variant="contained"
+            disabled={!entryPrice}
+            sx={{
+              bgcolor: '#424242',
+              color: '#FFFFFF',
+              '&:hover': {
+                bgcolor: '#616161',
+              },
+            }}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Custom Stop Loss Modal */}
       <Dialog
