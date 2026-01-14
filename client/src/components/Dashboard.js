@@ -27,7 +27,6 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import BalanceChartModal from './BalanceChartModal';
-import TradingViewChart from './TradingViewChart';
 import TradeHistoryModal from './TradeHistoryModal';
 import OpenPositionsModal from './OpenPositionsModal';
 import { config } from '../config';
@@ -42,7 +41,6 @@ function Dashboard() {
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [tradeHistoryModalOpen, setTradeHistoryModalOpen] = useState(false);
   const [openPositionsModalOpen, setOpenPositionsModalOpen] = useState(false);
-  const [chartSymbol, setChartSymbol] = useState('AAPL');
 
   // Create axios instance with auth header
   const getAuthHeaders = () => ({
@@ -282,13 +280,6 @@ function Dashboard() {
               </Grid>
             </Grid>
 
-            {/* TradingView Chart */}
-            <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
-              <Grid item xs={12}>
-                <TradingViewChart symbol={chartSymbol} height={600} key={chartSymbol} />
-              </Grid>
-            </Grid>
-
             <Grid container spacing={{ xs: 2, sm: 3 }}>
           {/* Account Performance Summary */}
           {accountData && (
@@ -471,12 +462,7 @@ function Dashboard() {
                                     sx={{ 
                                       color: 'white', 
                                       fontWeight: 600,
-                                      cursor: 'pointer',
-                                      '&:hover': {
-                                        color: '#9E9E9E',
-                                      },
                                     }}
-                                    onClick={() => setChartSymbol(position.symbol)}
                                   >
                                     {position.symbol}
                                   </TableCell>
