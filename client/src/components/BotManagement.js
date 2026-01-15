@@ -51,6 +51,7 @@ function BotManagement() {
     timeFrame: '1min',
     timeInForce: 'DAY',
     breakEven: false,
+    replay: false,
     status: 'PENDING',
   });
   const [formError, setFormError] = useState('');
@@ -192,6 +193,7 @@ function BotManagement() {
       timeInForce: formData.timeInForce,
       risk: formData.risk,
       breakEven: formData.breakEven,
+      replay: formData.replay,
     };
 
     // Add customStopLossValue if stopLoss is "Custom"
@@ -264,60 +266,6 @@ function BotManagement() {
     } catch (error) {
       setStatusMessage('❌ Error: ' + (error.response?.data?.error || error.message));
       console.error('Error closing positions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Replay button click - sends API request with replay: true
-  const handleReplay = async () => {
-    setLoading(true);
-    setStatusMessage('');
-    setFormError('');
-
-    try {
-      // Validate required fields
-      if (!formData.symbol) {
-        setFormError('Symbol is required');
-        setLoading(false);
-        return;
-      }
-
-      // Validate limit price for Limit Order
-      if (formData.tradeType === 'Limit Order' && !limitPrice) {
-        setFormError('Limit Price is required for Limit Order');
-        setLoading(false);
-        setLimitOrderModalOpen(true);
-        return;
-      }
-
-      // Validate entry price for Custom trade type
-      if (formData.tradeType === 'Custom' && !entryPrice) {
-        setFormError('Entry Price is required for Custom trade type');
-        setLoading(false);
-        setCustomTradeTypeModalOpen(true);
-        return;
-      }
-
-      // Build payload with replay: true
-      const payload = buildApiPayload();
-      payload.replay = true;
-
-      await axios.post(
-        `${API_BASE_URL}/bot/open-position`,
-        payload,
-        getAuthHeaders()
-      );
-
-      setStatusMessage('✅ Replay request sent successfully!');
-      setTimeout(() => setStatusMessage(''), 5000);
-
-      // Refresh positions
-      fetchPositions();
-    } catch (error) {
-      setFormError(error.response?.data?.error || error.message || 'An error occurred while sending replay request');
-      setStatusMessage('❌ Error: ' + (error.response?.data?.error || error.message));
-      console.error('Error sending replay request:', error);
     } finally {
       setLoading(false);
     }
@@ -414,6 +362,7 @@ function BotManagement() {
         timeFrame: '1min',
         timeInForce: 'DAY',
         breakEven: false,
+        replay: false,
         status: 'PENDING',
       });
       setCustomStopLossValue('');
@@ -925,20 +874,25 @@ function BotManagement() {
                         Break Even
                       </Button>
                       <Button
-                        variant="outlined"
-                        onClick={handleReplay}
-                        disabled={loading}
+                        variant={formData.replay ? 'contained' : 'outlined'}
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, replay: !prev.replay }));
+                        }}
                         sx={{
-                          borderColor: 'rgba(255, 255, 255, 0.3)',
-                          color: '#FFFFFF',
-                          '&:hover': {
-                            borderColor: '#FFFFFF',
-                            bgcolor: 'rgba(255, 255, 255, 0.1)',
-                          },
-                          '&:disabled': {
-                            borderColor: 'rgba(255, 255, 255, 0.1)',
-                            color: 'rgba(255, 255, 255, 0.3)',
-                          },
+                          ...(formData.replay
+                            ? {
+                                bgcolor: '#424242',
+                                color: '#FFFFFF',
+                                '&:hover': { bgcolor: '#616161' },
+                              }
+                            : {
+                                borderColor: 'rgba(255, 255, 255, 0.3)',
+                                color: '#FFFFFF',
+                                '&:hover': {
+                                  borderColor: '#FFFFFF',
+                                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                                },
+                              }),
                         }}
                       >
                         Replay
