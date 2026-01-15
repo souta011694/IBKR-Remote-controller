@@ -45,14 +45,12 @@ function BotManagement() {
     symbol: '',
     stopLoss: 'EntryBar',
     tradeType: 'FB',
-    cancel: false,
     action: 'BUY',
     risk: '',
     profit: '1:1',
     timeFrame: '1min',
     timeInForce: 'DAY',
     breakEven: false,
-    replay: false,
     status: 'PENDING',
   });
   const [formError, setFormError] = useState('');
@@ -271,6 +269,60 @@ function BotManagement() {
     }
   };
 
+  // Handle Replay button click - sends API request with replay: true
+  const handleReplay = async () => {
+    setLoading(true);
+    setStatusMessage('');
+    setFormError('');
+
+    try {
+      // Validate required fields
+      if (!formData.symbol) {
+        setFormError('Symbol is required');
+        setLoading(false);
+        return;
+      }
+
+      // Validate limit price for Limit Order
+      if (formData.tradeType === 'Limit Order' && !limitPrice) {
+        setFormError('Limit Price is required for Limit Order');
+        setLoading(false);
+        setLimitOrderModalOpen(true);
+        return;
+      }
+
+      // Validate entry price for Custom trade type
+      if (formData.tradeType === 'Custom' && !entryPrice) {
+        setFormError('Entry Price is required for Custom trade type');
+        setLoading(false);
+        setCustomTradeTypeModalOpen(true);
+        return;
+      }
+
+      // Build payload with replay: true
+      const payload = buildApiPayload();
+      payload.replay = true;
+
+      await axios.post(
+        `${API_BASE_URL}/bot/open-position`,
+        payload,
+        getAuthHeaders()
+      );
+
+      setStatusMessage('✅ Replay request sent successfully!');
+      setTimeout(() => setStatusMessage(''), 5000);
+
+      // Refresh positions
+      fetchPositions();
+    } catch (error) {
+      setFormError(error.response?.data?.error || error.message || 'An error occurred while sending replay request');
+      setStatusMessage('❌ Error: ' + (error.response?.data?.error || error.message));
+      console.error('Error sending replay request:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle form field changes
   const handleFormChange = (field) => (event) => {
     const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
@@ -356,14 +408,12 @@ function BotManagement() {
         symbol: '',
         stopLoss: 'EntryBar',
         tradeType: 'FB',
-        cancel: false,
         action: 'BUY',
         risk: '',
         profit: '1:1',
         timeFrame: '1min',
         timeInForce: 'DAY',
         breakEven: false,
-        replay: false,
         status: 'PENDING',
       });
       setCustomStopLossValue('');
@@ -851,30 +901,6 @@ function BotManagement() {
                         </Select>
                       </FormControl>
                       <Button
-                        variant={formData.cancel ? 'contained' : 'outlined'}
-                        onClick={() => {
-                          setFormData((prev) => ({ ...prev, cancel: !prev.cancel }));
-                        }}
-                        sx={{
-                          ...(formData.cancel
-                            ? {
-                                bgcolor: '#424242',
-                                color: '#FFFFFF',
-                                '&:hover': { bgcolor: '#616161' },
-                              }
-                            : {
-                                borderColor: 'rgba(255, 255, 255, 0.3)',
-                                color: '#FFFFFF',
-                                '&:hover': {
-                                  borderColor: '#FFFFFF',
-                                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                                },
-                              }),
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
                         variant={formData.breakEven ? 'contained' : 'outlined'}
                         onClick={() => {
                           setFormData((prev) => ({ ...prev, breakEven: !prev.breakEven }));
@@ -899,25 +925,20 @@ function BotManagement() {
                         Break Even
                       </Button>
                       <Button
-                        variant={formData.replay ? 'contained' : 'outlined'}
-                        onClick={() => {
-                          setFormData((prev) => ({ ...prev, replay: !prev.replay }));
-                        }}
+                        variant="outlined"
+                        onClick={handleReplay}
+                        disabled={loading}
                         sx={{
-                          ...(formData.replay
-                            ? {
-                                bgcolor: '#424242',
-                                color: '#FFFFFF',
-                                '&:hover': { bgcolor: '#616161' },
-                              }
-                            : {
-                                borderColor: 'rgba(255, 255, 255, 0.3)',
-                                color: '#FFFFFF',
-                                '&:hover': {
-                                  borderColor: '#FFFFFF',
-                                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                                },
-                              }),
+                          borderColor: 'rgba(255, 255, 255, 0.3)',
+                          color: '#FFFFFF',
+                          '&:hover': {
+                            borderColor: '#FFFFFF',
+                            bgcolor: 'rgba(255, 255, 255, 0.1)',
+                          },
+                          '&:disabled': {
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            color: 'rgba(255, 255, 255, 0.3)',
+                          },
                         }}
                       >
                         Replay
